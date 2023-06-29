@@ -7,6 +7,7 @@ from sklearn.neighbors import NearestNeighbors
 from roosts.utils.geo_util import geo_dist_km, get_roost_coor
 from roosts.utils.time_util import scan_key_to_utc_time
 from tqdm import tqdm
+from roosts.utils.filename_util import get_station_name
 
 
 class Postprocess():
@@ -128,7 +129,7 @@ class Postprocess():
             roost_xy = det["im_bbox"][:2]  # image coordinate of roost center
             # the following step is critical to get correct geographic coordinates
             station_xy = (self.imsize / 2., self.imsize / 2.)  # image coordinate of radar station
-            station_name = det["scanname"][:4]
+            station_name = get_station_name(det["scanname"])
             distance_per_pixel = self.geosize / self.imsize
             roost_lon, roost_lat = get_roost_coor(roost_xy, station_xy, station_name, distance_per_pixel)
             geo_radius = det["im_bbox"][2] * distance_per_pixel

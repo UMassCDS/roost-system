@@ -21,8 +21,9 @@ class RoostSystem:
             download_dir=dirs["scan_dir"], npz_dir=dirs["npz_dir"],
             aws_access_key_id=args.aws_access_key_id,
             aws_secret_access_key=args.aws_secret_access_key,
+            canadian_data = args.canadian_data
         )
-        self.renderer = Renderer(dirs["scan_dir"], dirs["npz_dir"], dirs["ui_img_dir"])
+        self.renderer = Renderer(dirs["scan_dir"], dirs["npz_dir"], dirs["ui_img_dir"], args["canadian_data"])
         if not args.just_render:
             self.detector = Detector(**det_cfg)
             self.tracker = Tracker()

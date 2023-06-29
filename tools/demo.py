@@ -5,7 +5,7 @@ warnings.filterwarnings("ignore")
 
 from roosts.system import RoostSystem
 from roosts.utils.time_util import get_days_list, get_sun_activity_time
-from roosts.utils.s3_util import get_station_day_scan_keys
+from roosts.data.downloader import get_station_day_scan_keys
 
 here = os.path.dirname(os.path.realpath(__file__))
 

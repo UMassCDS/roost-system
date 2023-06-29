@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as pltc
 from matplotlib import image
 from tqdm import tqdm
-
+from roosts.utils.filename_util import *
 
 # rendering settings
 ARRAY_Y_DIRECTION   = "xy" # default radar direction, y is first dim (row), large y is north, row 0 is south
@@ -74,6 +74,7 @@ class Renderer:
             ui_img_dir,
             array_render_config=ARRAY_RENDER_CONFIG,
             dualpol_render_config=DUALPOL_RENDER_CONFIG,
+            canadian_data = False
     ):
         self.download_dir = download_dir
         self.npz_dir = npz_dir
@@ -84,6 +85,7 @@ class Renderer:
 
         self.array_render_config = array_render_config
         self.dualpol_render_config = dualpol_render_config
+        self.canadian_data = canadian_data
 
     def render(self, keys, logger, force_rendering=False):
         """
@@ -98,12 +100,13 @@ class Renderer:
 
         for key in tqdm(keys, desc="Rendering"):
             key_splits = key.split("/")
-            utc_year = key_splits[-5]
-            utc_month = key_splits[-4]
-            utc_date = key_splits[-3]
-            utc_station = key_splits[-2]
+            key = format_file_name(key, self.canadian_data)
+            utc_year = get_year(key)
+            utc_month = get_month(key)
+            utc_date = get_day(key)
+            utc_station = get_station_name(key)
             utc_date_station_prefix = os.path.join(utc_year, utc_month, utc_date, utc_station)
-            scan = os.path.splitext(key_splits[-1])[0]
+            scan = os.path.splitext(key_splits[-1])[0] #TODO: what is this supposed to be?
 
             npz_dir = os.path.join(self.npz_dir, utc_date_station_prefix)
             dz05_imgdir = os.path.join(self.dz05_imgdir, utc_date_station_prefix)
