@@ -48,7 +48,7 @@ for args in args_list:
     --mem-per-cpu=2000 \
     --partition=longq \
     --time=4-00:00:00 \
-    demo.sbatch \
+    demo_canada.sbatch \
     --station {station} --start {start} --end {end} \
     --sun_activity {SUN_ACTIVITY} --min_before {MIN_BEFORE} --min_after {MIN_AFTER} \
     --data_root {DATA_ROOT} --model_version {MODEL_VERSION}'''
