@@ -46,7 +46,7 @@ for args in args_list:
     --ntasks=1 \
     --cpus-per-task={NUM_CPUS} \
     --mem-per-cpu=2000 \
-    --partition=longq \
+    --partition=cpu-long \
     --time=4-00:00:00 \
     demo_canada.sbatch \
     --station {station} --start {start} --end {end} \

@@ -5,7 +5,7 @@ warnings.filterwarnings("ignore")
 
 from roosts.system import RoostSystem
 from roosts.utils.time_util import get_days_list, get_sun_activity_time
-from roosts.utils.s3_util import get_station_day_scan_keys
+from roosts.utils.azure_sa_util import get_station_day_scan_keys
 
 here = os.path.dirname(os.path.realpath(__file__))
 
@@ -89,13 +89,7 @@ for day_idx, day in enumerate(days):
     )  # utc timestamp (with utc tzinfo) for the local sun activity after the beginning of the local date
     start_time = sun_activity_time - timedelta(minutes=args.min_before)
     end_time = sun_activity_time + timedelta(minutes=args.min_after)
-    keys = get_station_day_scan_keys(
-        start_time,
-        end_time,
-        args.station,
-        aws_access_key_id=args.aws_access_key_id,
-        aws_secret_access_key=args.aws_secret_access_key,
-    )  # aws keys which uses UTC time: yyyy/mm/dd/ssss/ssssyyyymmdd_hhmmss*
+    keys = get_station_day_scan_keys(start_time, end_time, args.station)
     keys = sorted(list(set(keys)))
 
     roost_system.run_day_station(day, sun_activity_time, keys, process_start_time)
