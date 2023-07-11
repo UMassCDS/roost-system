@@ -16,8 +16,8 @@ MIN_BEFORE = 30
 MIN_AFTER = 60
 # directory for system outputs
 MODEL_VERSION = "v3"
-EXPERIMENT_NAME = f"all_stations_{MODEL_VERSION}"
-DATA_ROOT = f"/mnt/nfs/scratch1/wenlongzhao/roosts_data/{EXPERIMENT_NAME}"
+EXPERIMENT_NAME = f"canadian_test_{MODEL_VERSION}"
+DATA_ROOT = f"~/cdsfork/roost-data/{EXPERIMENT_NAME}"
 
 try:
     assert STATIONS_TIMES
