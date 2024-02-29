@@ -1,43 +1,48 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
-import sys
 import math
-import numpy as np
-from PIL import Image
-from fvcore.transforms.transform import Transform
-import fvcore.nn.weight_init as weight_init
-import torch
-from torch import nn
-import torch.nn.functional as F
+import sys
 
-from detectron2.data import transforms as T
-from detectron2.data import MetadataCatalog
-from detectron2.data.detection_utils import transform_keypoint_annotations
-from detectron2.layers import Conv2d, ShapeSpec, get_norm
+import fvcore.nn.weight_init as weight_init
+import numpy as np
+import torch
+import torch.nn.functional as F
 from detectron2.checkpoint import DetectionCheckpointer
+from detectron2.data import MetadataCatalog
+from detectron2.data import transforms as T
+from detectron2.layers import Conv2d, ShapeSpec, get_norm
 from detectron2.modeling import build_model
 from detectron2.modeling.backbone import Backbone
 from detectron2.modeling.backbone.build import BACKBONE_REGISTRY
 from detectron2.modeling.backbone.resnet import build_resnet_backbone
-from detectron2.engine import DefaultPredictor
+from fvcore.transforms.transform import Transform
+from PIL import Image
+from torch import nn
 
-
-__all__ = ["build_adaptor_resnet_fpn_backbone", "build_adaptor_retinanet_resnet_fpn_backbone", "Adaptor_FPN"]
+__all__ = [
+    "build_adaptor_resnet_fpn_backbone",
+    "build_adaptor_retinanet_resnet_fpn_backbone",
+    "Adaptor_FPN",
+]
 
 
 ####################################################
 #### GPS: adaptors #################################
 ####################################################
 
+
 class LinearAdaptor(nn.Module):
     def __init__(self, input_channels=4):
         super(LinearAdaptor, self).__init__()
-        self.mean = torch.tensor([103.530, 116.280, 123.675])#.cuda()  # imagenet
-        self.std = torch.tensor([1.0, 1.0, 1.0])#.cuda()  # imagenet
+        self.mean = torch.tensor([103.530, 116.280, 123.675])  # .cuda()  # imagenet
+        self.std = torch.tensor([1.0, 1.0, 1.0])  # .cuda()  # imagenet
         self.conv1 = nn.Conv2d(input_channels, 3, kernel_size=1)
 
     def forward(self, x):
+        device = x.device  # Get the device of the input tensor
         out = self.conv1(x)
-        out -= self.mean.reshape(-1, 1, 1)
+        out -= self.mean.to(device).reshape(
+            -1, 1, 1
+        )  # Move mean to the same device as x
         return out
 
 
@@ -45,8 +50,8 @@ class MultiLayerAdaptor(nn.Module):
     def __init__(self, input_channels=3, is_pretrain=False):
         super(MultiLayerAdaptor, self).__init__()
         self.is_pretrain = is_pretrain
-        self.mean = torch.tensor([103.530, 116.280, 123.675])#.cuda()  # imagenet
-        self.std = torch.tensor([1.0, 1.0, 1.0])#.cuda()  # imagenet
+        self.mean = torch.tensor([103.530, 116.280, 123.675])  # .cuda()  # imagenet
+        self.std = torch.tensor([1.0, 1.0, 1.0])  # .cuda()  # imagenet
         self.conv1 = nn.Conv2d(input_channels, 16, kernel_size=3, stride=1, padding=1)
         self.bn1 = nn.BatchNorm2d(16)
         self.relu1 = nn.ReLU()
@@ -61,17 +66,21 @@ class MultiLayerAdaptor(nn.Module):
         self.relu8 = nn.ReLU()  # nn.Sigmoid()
 
     def forward(self, x):
+        device = x.device  # Get the device of the input tensor
         out = self.relu1(self.bn1(self.conv1(x)))
         out = self.relu2(self.bn2(self.conv2(out)))
         out = self.relu7(self.bn7(self.conv7(out)))
         out = self.relu8(self.bn8(self.conv8(out)))
-        out -= self.mean.reshape(-1, 1, 1)
+        out -= self.mean.to(device).reshape(
+            -1, 1, 1
+        )  # Move mean to the same device as x
         return out
 
 
 ####################################################
 #### GPS: custom backbone ##########################
 ####################################################
+
 
 class Adaptor_FPN(Backbone):
     """
@@ -80,8 +89,15 @@ class Adaptor_FPN(Backbone):
     """
 
     def __init__(
-            self, bottom_up, in_features, out_channels, norm="", top_block=None, fuse_type="sum",
-            adaptor=None, adaptor_in_channels=3,
+        self,
+        bottom_up,
+        in_features,
+        out_channels,
+        norm="",
+        top_block=None,
+        fuse_type="sum",
+        adaptor=None,
+        adaptor_in_channels=3,
     ):
         """
         Args:
@@ -124,7 +140,11 @@ class Adaptor_FPN(Backbone):
             output_norm = get_norm(norm, out_channels)
 
             lateral_conv = Conv2d(
-                in_channels, out_channels, kernel_size=1, bias=use_bias, norm=lateral_norm
+                in_channels,
+                out_channels,
+                kernel_size=1,
+                bias=use_bias,
+                norm=lateral_norm,
             )
             output_conv = Conv2d(
                 out_channels,
@@ -146,12 +166,12 @@ class Adaptor_FPN(Backbone):
 
         # GPS: adaptor
         self.is_adaptor = adaptor
-        if adaptor == 'linear':
+        if adaptor == "linear":
             self.adaptor = LinearAdaptor(input_channels=adaptor_in_channels)
-        elif adaptor == 'multi-layer':
+        elif adaptor == "multi-layer":
             self.adaptor = MultiLayerAdaptor(input_channels=adaptor_in_channels)
         elif adaptor:
-            sys.exit('invalid adaptor <%s>!' % (adaptor))
+            sys.exit("invalid adaptor <%s>!" % (adaptor))
 
         # Place convs into top-down order (from low to high resolution)
         # to make the top-down computation in forward clearer.
@@ -161,7 +181,9 @@ class Adaptor_FPN(Backbone):
         self.in_features = in_features
         self.bottom_up = bottom_up
         # Return feature names are "p<stage>", like ["p2", "p3", ..., "p6"]
-        self._out_feature_strides = {"p{}".format(int(math.log2(s))): s for s in in_strides}
+        self._out_feature_strides = {
+            "p{}".format(int(math.log2(s))): s for s in in_strides
+        }
         # top block output feature maps.
         if self.top_block is not None:
             for s in range(stage, stage + self.top_block.num_levels):
@@ -199,9 +221,11 @@ class Adaptor_FPN(Backbone):
         prev_features = self.lateral_convs[0](x[0])
         results.append(self.output_convs[0](prev_features))
         for features, lateral_conv, output_conv in zip(
-                x[1:], self.lateral_convs[1:], self.output_convs[1:]
+            x[1:], self.lateral_convs[1:], self.output_convs[1:]
         ):
-            top_down_features = F.interpolate(prev_features, scale_factor=2.0, mode="nearest")
+            top_down_features = F.interpolate(
+                prev_features, scale_factor=2.0, mode="nearest"
+            )
             lateral_features = lateral_conv(features)
             prev_features = lateral_features + top_down_features
             if self._fuse_type == "avg":
@@ -209,9 +233,13 @@ class Adaptor_FPN(Backbone):
             results.insert(0, output_conv(prev_features))
 
         if self.top_block is not None:
-            top_block_in_feature = bottom_up_features.get(self.top_block.in_feature, None)
+            top_block_in_feature = bottom_up_features.get(
+                self.top_block.in_feature, None
+            )
             if top_block_in_feature is None:
-                top_block_in_feature = results[self._out_features.index(self.top_block.in_feature)]
+                top_block_in_feature = results[
+                    self._out_features.index(self.top_block.in_feature)
+                ]
             results.extend(self.top_block(top_block_in_feature))
         assert len(self._out_features) == len(results)
         return dict(zip(self._out_features, results))
@@ -219,7 +247,8 @@ class Adaptor_FPN(Backbone):
     def output_shape(self):
         return {
             name: ShapeSpec(
-                channels=self._out_feature_channels[name], stride=self._out_feature_strides[name]
+                channels=self._out_feature_channels[name],
+                stride=self._out_feature_strides[name],
             )
             for name in self._out_features
         }
@@ -230,9 +259,9 @@ def _assert_strides_are_log2_contiguous(strides):
     Assert that each stride is 2x times its preceding stride, i.e. "contiguous in log2".
     """
     for i, stride in enumerate(strides[1:], 1):
-        assert stride == 2 * strides[i - 1], "Strides {} {} are not log2 contiguous".format(
-            stride, strides[i - 1]
-        )
+        assert (
+            stride == 2 * strides[i - 1]
+        ), "Strides {} {} are not log2 contiguous".format(stride, strides[i - 1])
 
 
 class LastLevelMaxPool(nn.Module):
@@ -280,9 +309,12 @@ def build_adaptor_resnet_fpn_backbone(cfg, input_shape: ShapeSpec):
         backbone (Backbone): backbone module, must be a subclass of :class:`Backbone`.
     """
 
-    class input_shape(object): pass  # GPS
+    class input_shape(object):
+        pass  # GPS
 
-    input_shape.channels = 3  # GPS: to override the shape of the input array (4+ channels)
+    input_shape.channels = (
+        3  # GPS: to override the shape of the input array (4+ channels)
+    )
 
     bottom_up = build_resnet_backbone(cfg, input_shape)
     in_features = cfg.MODEL.FPN.IN_FEATURES
@@ -309,9 +341,12 @@ def build_adaptor_retinanet_resnet_fpn_backbone(cfg, input_shape: ShapeSpec):
         backbone (Backbone): backbone module, must be a subclass of :class:`Backbone`.
     """
 
-    class input_shape(object): pass  # GPS
+    class input_shape(object):
+        pass  # GPS
 
-    input_shape.channels = 3  # GPS: to overridethe shape of the input array (4+ channels)
+    input_shape.channels = (
+        3  # GPS: to overridethe shape of the input array (4+ channels)
+    )
 
     bottom_up = build_resnet_backbone(cfg, input_shape)
     in_features = cfg.MODEL.FPN.IN_FEATURES
@@ -333,6 +368,7 @@ def build_adaptor_retinanet_resnet_fpn_backbone(cfg, input_shape: ShapeSpec):
 ####################################################
 #### GPS: custom augmentations for 4+ channel arrays
 ####################################################
+
 
 class CustomResize(T.Augmentation):
     """Resize image with 4+ channels to a fixed target size"""
@@ -446,7 +482,9 @@ class AdaptorPredictor:
         checkpointer = DetectionCheckpointer(self.model)
         checkpointer.load(cfg.MODEL.WEIGHTS)
 
-        self.aug = CustomResize((cfg.INPUT.MIN_SIZE_TEST, cfg.INPUT.MIN_SIZE_TEST)) # for adaptors
+        self.aug = CustomResize(
+            (cfg.INPUT.MIN_SIZE_TEST, cfg.INPUT.MIN_SIZE_TEST)
+        )  # for adaptors
 
         self.input_format = cfg.INPUT.FORMAT
         assert self.input_format in ["RGB", "BGR"], self.input_format
