@@ -5,14 +5,18 @@ NUM_CPUS = 7
 # deployment station, start date (inclusive), end date (inclusive)
 # specify either
 STATIONS = ["KBUF", "KCLE", "KTYX"]
-TIMES = [("20100201", "20100331"), ("20100801", "20100930"),
-         ("20170201", "20170331"), ("20170801", "20170930"),]
+TIMES = [
+    ("20100201", "20100331"),
+    ("20100801", "20100930"),
+    ("20170201", "20170331"),
+    ("20170801", "20170930"),
+]
 # or
 # STATIONS_TIMES = [
 #     ("KLTX", "20100701", "20100701"),
 # ]
 
-SUN_ACTIVITY = "sunrise" # bird activities occur around sunrise
+SUN_ACTIVITY = "sunrise"  # bird activities occur around sunrise
 MIN_BEFORE = 30
 MIN_AFTER = 90
 # directory for system outputs
@@ -29,7 +33,7 @@ for args in args_list:
     station = args[0]
     start = args[1]
     end = args[2]
-    
+
     slurm_logs = f"slurm_logs/{EXPERIMENT_NAME}/{station}"
     slurm_output = os.path.join(slurm_logs, f"{station}_{start}_{end}.out")
     slurm_error = os.path.join(slurm_logs, f"{station}_{start}_{end}.err")
@@ -39,7 +43,7 @@ for args in args_list:
     os.system(f"export OPENBLAS_NUM_THREADS={NUM_CPUS}")
     os.system(f"export OMP_NUM_THREADS={NUM_CPUS}")
 
-    cmd = f'''sbatch \
+    cmd = f"""sbatch \
     --job-name="{station}{start}_{end}" \
     --output="{slurm_output}" \
     --error="{slurm_error}" \
@@ -52,7 +56,7 @@ for args in args_list:
     demo.sbatch \
     --station {station} --start {start} --end {end} \
     --sun_activity {SUN_ACTIVITY} --min_before {MIN_BEFORE} --min_after {MIN_AFTER} \
-    --data_root {DATA_ROOT} --model_version {MODEL_VERSION}'''
-    
+    --data_root {DATA_ROOT} --model_version {MODEL_VERSION}"""
+
     os.system(cmd)
     time.sleep(1)

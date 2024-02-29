@@ -5,13 +5,15 @@ NUM_CPUS = 7
 # deployment station, start date (inclusive), end date (inclusive)
 # specify either
 STATIONS = ["CSET"]
-TIMES = [("20220603", "20220604"),]
+TIMES = [
+    ("20220603", "20220604"),
+]
 # or
 # STATIONS_TIMES = [
 #     ("KLTX", "20100701", "20100701"),
 # ]
 
-SUN_ACTIVITY = "sunrise" # bird activities occur around sunrise
+SUN_ACTIVITY = "sunrise"  # bird activities occur around sunrise
 MIN_BEFORE = 30
 MIN_AFTER = 60
 # directory for system outputs
@@ -38,7 +40,7 @@ for args in args_list:
     os.system(f"export OPENBLAS_NUM_THREADS={NUM_CPUS}")
     os.system(f"export OMP_NUM_THREADS={NUM_CPUS}")
 
-    cmd = f'''sbatch \
+    cmd = f"""sbatch \
     --job-name="{station}{start}_{end}" \
     --output="{slurm_output}" \
     --error="{slurm_error}" \
@@ -51,7 +53,7 @@ for args in args_list:
     demo_canada.sbatch \
     --station {station} --start {start} --end {end} --is_canadian={is_canadian}\
     --sun_activity {SUN_ACTIVITY} --min_before {MIN_BEFORE} --min_after {MIN_AFTER} \
-    --data_root {DATA_ROOT} --model_version {MODEL_VERSION}'''
-    
+    --data_root {DATA_ROOT} --model_version {MODEL_VERSION}"""
+
     os.system(cmd)
     time.sleep(1)

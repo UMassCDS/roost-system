@@ -15,7 +15,7 @@ os.system(f"export MKL_NUM_THREADS={NUM_CPUS}")
 os.system(f"export OPENBLAS_NUM_THREADS={NUM_CPUS}")
 os.system(f"export OMP_NUM_THREADS={NUM_CPUS}")
 
-cmd = f'''sbatch \
+cmd = f"""sbatch \
 --output="{slurm_output}" \
 --error="{slurm_error}" \
 --nodes=1 \
@@ -24,7 +24,7 @@ cmd = f'''sbatch \
 --mem-per-cpu=2000 \
 --partition=longq \
 --time=2-00:00:00 \
-demo_tiff.sbatch --data_root {DATA_ROOT}'''
+demo_tiff.sbatch --data_root {DATA_ROOT}"""
 
 os.system(cmd)
 time.sleep(1)

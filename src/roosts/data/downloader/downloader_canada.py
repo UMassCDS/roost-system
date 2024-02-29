@@ -6,10 +6,6 @@ from roosts.utils.azure_sa_util import download_scan
 
 from .downloader import Downloader
 
-from roosts.utils.azure_sa_util import download_scan
-
-from .downloader import Downloader
-
 
 class DownloaderCanada(Downloader):
 

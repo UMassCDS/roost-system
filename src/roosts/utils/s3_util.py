@@ -1,27 +1,27 @@
 import boto3
-import botocore
 from datetime import datetime, timedelta
 import re
 import os
 import pytz
+
 
 ####################################
 # Helpers
 ####################################
 def datetime_range(start=None, end=None, delta=timedelta(minutes=1), inclusive=True):
     """Construct a generator for a range of dates
-    
+
     Args:
         start (datetime): start time
         end (datetime): end time
         delta (timedelta): time increment
         inclusive (bool): whether to include the end date
-    
+
     Returns:
         Generator object
     """
     t = start or datetime.now()
-    
+
     if inclusive:
         keep_going = lambda s, e: s <= e
     else:
@@ -32,48 +32,51 @@ def datetime_range(start=None, end=None, delta=timedelta(minutes=1), inclusive=T
         t = t + delta
     return
 
+
 def s3_key(t, station):
     """Construct (prefix of) s3 key for NEXRAD file
-   
+
     Args:
         t (datetime): timestamp of file
         station (string): station identifier
 
     Returns:
         string: s3 key, excluding version string suffix
-        
+
     Example format:
             s3 key: 2015/05/02/KMPX/KMPX20150502_021525_V06.gz
         return val: 2015/05/02/KMPX/KMPX20150502_021525
     """
-    
-    key = '%04d/%02d/%02d/%04s/%04s%04d%02d%02d_%02d%02d%02d' % (
-        t.year, 
-        t.month, 
-        t.day, 
-        station, 
+
+    key = "%04d/%02d/%02d/%04s/%04s%04d%02d%02d_%02d%02d%02d" % (
+        t.year,
+        t.month,
+        t.day,
+        station,
         station,
         t.year,
         t.month,
         t.day,
         t.hour,
         t.minute,
-        t.second
+        t.second,
     )
-    
+
     return key
 
+
 def s3_prefix(t, station=None):
-    prefix = '%04d/%02d/%02d' % (t.year, t.month, t.day)
+    prefix = "%04d/%02d/%02d" % (t.year, t.month, t.day)
     if station is not None:
-        prefix = prefix + '/%04s/%04s' % (station, station)
+        prefix = prefix + "/%04s/%04s" % (station, station)
     return prefix
+
 
 def parse_key(key):
     path, key = os.path.split(key)
-    vals = re.match('(\w{4})(\d{4}\d{2}\d{2}_\d{2}\d{2}\d{2})(\.?\w+)', key)
+    vals = re.match("(\w{4})(\d{4}\d{2}\d{2}_\d{2}\d{2}\d{2})(\.?\w+)", key)
     (station, timestamp, suffix) = vals.groups()
-    t = datetime.strptime(timestamp, '%Y%m%d_%H%M%S')
+    t = datetime.strptime(timestamp, "%Y%m%d_%H%M%S")
     return pytz.utc.localize(t), station
 
 
@@ -81,25 +84,27 @@ def parse_key(key):
 # AWS setup
 ####################################
 
-def get_station_day_scan_keys(
-        start_time,
-        end_time,
-        station,
-        stride_in_minutes=3,
-        thresh_in_minutes=3,
-        aws_access_key_id = None,
-        aws_secret_access_key = None,
-):
 
+def get_station_day_scan_keys(
+    start_time,
+    end_time,
+    station,
+    stride_in_minutes=3,
+    thresh_in_minutes=3,
+    aws_access_key_id=None,
+    aws_secret_access_key=None,
+):
     if aws_access_key_id is None and aws_secret_access_key is None:
-        bucket = boto3.resource('s3', region_name='us-east-2').Bucket('noaa-nexrad-level2')
+        bucket = boto3.resource("s3", region_name="us-east-2").Bucket(
+            "noaa-nexrad-level2"
+        )
     else:
         bucket = boto3.resource(
-            's3',
+            "s3",
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
-            region_name='us-east-2'
-        ).Bucket('noaa-nexrad-level2')
+            region_name="us-east-2",
+        ).Bucket("noaa-nexrad-level2")
     start_key = s3_key(start_time, station)
     end_key = s3_key(end_time, station)
 
@@ -115,7 +120,9 @@ def get_station_day_scan_keys(
         return []
 
     # iterate by time and select the appropriate scans
-    times = list(datetime_range(start_time, end_time, timedelta(minutes=stride_in_minutes)))
+    times = list(
+        datetime_range(start_time, end_time, timedelta(minutes=stride_in_minutes))
+    )
     time_thresh = timedelta(minutes=thresh_in_minutes)
 
     selected_keys = []
@@ -137,20 +144,22 @@ def get_station_day_scan_keys(
 
 
 def download_scan(
-        key,
-        data_dir,
-        aws_access_key_id=None,
-        aws_secret_access_key=None,
+    key,
+    data_dir,
+    aws_access_key_id=None,
+    aws_secret_access_key=None,
 ):
     if aws_access_key_id is None and aws_secret_access_key is None:
-        bucket = boto3.resource('s3', region_name='us-east-2').Bucket('noaa-nexrad-level2')
+        bucket = boto3.resource("s3", region_name="us-east-2").Bucket(
+            "noaa-nexrad-level2"
+        )
     else:
         bucket = boto3.resource(
-            's3',
+            "s3",
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
-            region_name='us-east-2'
-        ).Bucket('noaa-nexrad-level2')
+            region_name="us-east-2",
+        ).Bucket("noaa-nexrad-level2")
 
     local_file = os.path.join(data_dir, key)
     local_dir, filename = os.path.split(local_file)

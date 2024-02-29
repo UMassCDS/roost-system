@@ -15,43 +15,49 @@ from detectron2.modeling.backbone import Backbone
 from detectron2.modeling.backbone.build import BACKBONE_REGISTRY
 from detectron2.modeling.backbone.resnet import build_resnet_backbone
 
-__all__ = ["build_adaptor_resnet_fpn_backbone", "build_adaptor_retinanet_resnet_fpn_backbone", "Adaptor_FPN"]
+__all__ = [
+    "build_adaptor_resnet_fpn_backbone",
+    "build_adaptor_retinanet_resnet_fpn_backbone",
+    "Adaptor_FPN",
+]
 
 
 ####################################################
 #### GPS: adaptors #################################
 ####################################################
 
+
 class LinearAdaptor(nn.Module):
     def __init__(self, input_channels=4):
         super(LinearAdaptor, self).__init__()
-        self.mean = torch.tensor([103.530, 116.280, 123.675]).cuda() # imagenet
-        self.std = torch.tensor([1.0, 1.0, 1.0]).cuda() # imagenet
+        self.mean = torch.tensor([103.530, 116.280, 123.675]).cuda()  # imagenet
+        self.std = torch.tensor([1.0, 1.0, 1.0]).cuda()  # imagenet
         self.conv1 = nn.Conv2d(input_channels, 3, kernel_size=1)
 
     def forward(self, x):
         out = self.conv1(x)
-        out -= self.mean.reshape(-1,1,1)
+        out -= self.mean.reshape(-1, 1, 1)
         return out
+
 
 class MultiLayerAdaptor(nn.Module):
     def __init__(self, input_channels=3, is_pretrain=False):
         super(MultiLayerAdaptor, self).__init__()
         self.is_pretrain = is_pretrain
-        self.mean = torch.tensor([103.530, 116.280, 123.675]).cuda() # imagenet
-        self.std = torch.tensor([1.0, 1.0, 1.0]).cuda() # imagenet
+        self.mean = torch.tensor([103.530, 116.280, 123.675]).cuda()  # imagenet
+        self.std = torch.tensor([1.0, 1.0, 1.0]).cuda()  # imagenet
         self.conv1 = nn.Conv2d(input_channels, 16, kernel_size=3, stride=1, padding=1)
-        self.bn1   = nn.BatchNorm2d(16)
+        self.bn1 = nn.BatchNorm2d(16)
         self.relu1 = nn.ReLU()
         self.conv2 = nn.Conv2d(16, 16, kernel_size=3, stride=1, padding=1)
-        self.bn2   = nn.BatchNorm2d(16)
+        self.bn2 = nn.BatchNorm2d(16)
         self.relu2 = nn.ReLU()
         self.conv7 = nn.Conv2d(16, 16, kernel_size=3, stride=1, padding=1)
-        self.bn7   = nn.BatchNorm2d(16)
+        self.bn7 = nn.BatchNorm2d(16)
         self.relu7 = nn.ReLU()
         self.conv8 = nn.Conv2d(16, 3, kernel_size=3, stride=1, padding=1)
-        self.bn8   = nn.BatchNorm2d(3)
-        self.relu8 = nn.ReLU() #nn.Sigmoid()
+        self.bn8 = nn.BatchNorm2d(3)
+        self.relu8 = nn.ReLU()  # nn.Sigmoid()
 
     def forward(self, x):
         out = self.relu1(self.bn1(self.conv1(x)))
@@ -66,6 +72,7 @@ class MultiLayerAdaptor(nn.Module):
 #### GPS: custom backbone ##########################
 ####################################################
 
+
 class Adaptor_FPN(Backbone):
     """
     This module implements Feature Pyramid Network.
@@ -73,8 +80,15 @@ class Adaptor_FPN(Backbone):
     """
 
     def __init__(
-        self, bottom_up, in_features, out_channels, norm="", top_block=None, fuse_type="sum",
-        adaptor=None, adaptor_in_channels=3,
+        self,
+        bottom_up,
+        in_features,
+        out_channels,
+        norm="",
+        top_block=None,
+        fuse_type="sum",
+        adaptor=None,
+        adaptor_in_channels=3,
     ):
         """
         Args:
@@ -101,7 +115,7 @@ class Adaptor_FPN(Backbone):
         """
         super(Adaptor_FPN, self).__init__()
         assert isinstance(bottom_up, Backbone)
-        
+
         # Feature map strides and channels from the bottom up network (e.g. ResNet)
         input_shapes = bottom_up.output_shape()
         in_strides = [input_shapes[f].stride for f in in_features]
@@ -117,7 +131,11 @@ class Adaptor_FPN(Backbone):
             output_norm = get_norm(norm, out_channels)
 
             lateral_conv = Conv2d(
-                in_channels, out_channels, kernel_size=1, bias=use_bias, norm=lateral_norm
+                in_channels,
+                out_channels,
+                kernel_size=1,
+                bias=use_bias,
+                norm=lateral_norm,
             )
             output_conv = Conv2d(
                 out_channels,
@@ -136,15 +154,15 @@ class Adaptor_FPN(Backbone):
 
             lateral_convs.append(lateral_conv)
             output_convs.append(output_conv)
-        
+
         # GPS: adaptor
         self.is_adaptor = adaptor
-        if adaptor == 'linear':
+        if adaptor == "linear":
             self.adaptor = LinearAdaptor(input_channels=adaptor_in_channels)
-        elif adaptor == 'multi-layer':
+        elif adaptor == "multi-layer":
             self.adaptor = MultiLayerAdaptor(input_channels=adaptor_in_channels)
         elif adaptor:
-            sys.exit('invalid adaptor <%s>!'%(adaptor))
+            sys.exit("invalid adaptor <%s>!" % (adaptor))
 
         # Place convs into top-down order (from low to high resolution)
         # to make the top-down computation in forward clearer.
@@ -154,7 +172,9 @@ class Adaptor_FPN(Backbone):
         self.in_features = in_features
         self.bottom_up = bottom_up
         # Return feature names are "p<stage>", like ["p2", "p3", ..., "p6"]
-        self._out_feature_strides = {"p{}".format(int(math.log2(s))): s for s in in_strides}
+        self._out_feature_strides = {
+            "p{}".format(int(math.log2(s))): s for s in in_strides
+        }
         # top block output feature maps.
         if self.top_block is not None:
             for s in range(stage, stage + self.top_block.num_levels):
@@ -194,7 +214,9 @@ class Adaptor_FPN(Backbone):
         for features, lateral_conv, output_conv in zip(
             x[1:], self.lateral_convs[1:], self.output_convs[1:]
         ):
-            top_down_features = F.interpolate(prev_features, scale_factor=2.0, mode="nearest")
+            top_down_features = F.interpolate(
+                prev_features, scale_factor=2.0, mode="nearest"
+            )
             lateral_features = lateral_conv(features)
             prev_features = lateral_features + top_down_features
             if self._fuse_type == "avg":
@@ -202,9 +224,13 @@ class Adaptor_FPN(Backbone):
             results.insert(0, output_conv(prev_features))
 
         if self.top_block is not None:
-            top_block_in_feature = bottom_up_features.get(self.top_block.in_feature, None)
+            top_block_in_feature = bottom_up_features.get(
+                self.top_block.in_feature, None
+            )
             if top_block_in_feature is None:
-                top_block_in_feature = results[self._out_features.index(self.top_block.in_feature)]
+                top_block_in_feature = results[
+                    self._out_features.index(self.top_block.in_feature)
+                ]
             results.extend(self.top_block(top_block_in_feature))
         assert len(self._out_features) == len(results)
         return dict(zip(self._out_features, results))
@@ -212,7 +238,8 @@ class Adaptor_FPN(Backbone):
     def output_shape(self):
         return {
             name: ShapeSpec(
-                channels=self._out_feature_channels[name], stride=self._out_feature_strides[name]
+                channels=self._out_feature_channels[name],
+                stride=self._out_feature_strides[name],
             )
             for name in self._out_features
         }
@@ -223,9 +250,9 @@ def _assert_strides_are_log2_contiguous(strides):
     Assert that each stride is 2x times its preceding stride, i.e. "contiguous in log2".
     """
     for i, stride in enumerate(strides[1:], 1):
-        assert stride == 2 * strides[i - 1], "Strides {} {} are not log2 contiguous".format(
-            stride, strides[i - 1]
-        )
+        assert (
+            stride == 2 * strides[i - 1]
+        ), "Strides {} {} are not log2 contiguous".format(stride, strides[i - 1])
 
 
 class LastLevelMaxPool(nn.Module):
@@ -272,8 +299,13 @@ def build_adaptor_resnet_fpn_backbone(cfg, input_shape: ShapeSpec):
     Returns:
         backbone (Backbone): backbone module, must be a subclass of :class:`Backbone`.
     """
-    class input_shape(object): pass # GPS
-    input_shape.channels = 3 # GPS: to override the shape of the input array (4+ channels)
+
+    class input_shape(object):
+        pass  # GPS
+
+    input_shape.channels = (
+        3  # GPS: to override the shape of the input array (4+ channels)
+    )
 
     bottom_up = build_resnet_backbone(cfg, input_shape)
     in_features = cfg.MODEL.FPN.IN_FEATURES
@@ -299,8 +331,13 @@ def build_adaptor_retinanet_resnet_fpn_backbone(cfg, input_shape: ShapeSpec):
     Returns:
         backbone (Backbone): backbone module, must be a subclass of :class:`Backbone`.
     """
-    class input_shape(object): pass # GPS
-    input_shape.channels = 3 # GPS: to overridethe shape of the input array (4+ channels)
+
+    class input_shape(object):
+        pass  # GPS
+
+    input_shape.channels = (
+        3  # GPS: to overridethe shape of the input array (4+ channels)
+    )
 
     bottom_up = build_resnet_backbone(cfg, input_shape)
     in_features = cfg.MODEL.FPN.IN_FEATURES
@@ -323,6 +360,7 @@ def build_adaptor_retinanet_resnet_fpn_backbone(cfg, input_shape: ShapeSpec):
 #### GPS: custom augmentations for 4+ channel arrays
 ####################################################
 
+
 class CustomResize(T.Augmentation):
     """Resize image with 4+ channels to a fixed target size"""
 
@@ -341,6 +379,7 @@ class CustomResize(T.Augmentation):
         return CustomResizeTransform(
             image.shape[0], image.shape[1], self.shape[0], self.shape[1], self.interp
         )
+
 
 class CustomResizeTransform(Transform):
     """

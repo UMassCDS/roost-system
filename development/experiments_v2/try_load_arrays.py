@@ -26,4 +26,3 @@ for split in SPLITS:
         array = np.load(array_path)
         BAD_NPZ.write(f"{array_path} - array")
         _ = array["array"]
-

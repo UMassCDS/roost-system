@@ -1,7 +1,5 @@
 import os
-import os.path as osp
-import shutil
-from tqdm import tqdm
+
 
 # not exist dir, then create
 def mkdir(dirname):
@@ -13,4 +11,3 @@ def delete_files(filepaths):
     for filepath in filepaths:
         if os.path.exists(filepath):
             os.remove(filepath)
-

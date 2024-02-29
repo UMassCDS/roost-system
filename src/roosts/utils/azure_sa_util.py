@@ -4,23 +4,24 @@ import os
 import pytz
 from azure.storage.blob import ContainerClient
 
+
 ####################################
 # Helpers
 ####################################
 def datetime_range(start=None, end=None, delta=timedelta(minutes=1), inclusive=True):
     """Construct a generator for a range of dates
-    
+
     Args:
         start (datetime): start time
         end (datetime): end time
         delta (timedelta): time increment
         inclusive (bool): whether to include the end date
-    
+
     Returns:
         Generator object
     """
     t = start or datetime.now()
-    
+
     if inclusive:
         keep_going = lambda s, e: s <= e
     else:
@@ -40,19 +41,20 @@ def blob_date_prefix(t):
 
     Returns:
         string: blob prefix contain date information
-        
+
     Example format:
             blob name: 2022060100_06_ODIMH5_PVOL6S_VOL_CASET.h5
         return val: 20220601
     """
-    prefix = '%04d%02d%02d' % (t.year, t.month, t.day)
+    prefix = "%04d%02d%02d" % (t.year, t.month, t.day)
     return prefix
+
 
 def obtain_blob_timestamp(key):
     _, key = os.path.split(key)
-    vals = re.match('(\d{4}\d{2}\d{2}\d{2}_\d{2})(\.?\w+)', key)
+    vals = re.match("(\d{4}\d{2}\d{2}\d{2}_\d{2})(\.?\w+)", key)
     (timestamp, suffix) = vals.groups()
-    t = datetime.strptime(timestamp, '%Y%m%d%H_%M')
+    t = datetime.strptime(timestamp, "%Y%m%d%H_%M")
     return pytz.utc.localize(t)
 
 
@@ -60,34 +62,38 @@ def obtain_blob_timestamp(key):
 # Azure setup
 ####################################
 
-def get_station_day_scan_keys(
-        start_time,
-        end_time,
-        station, # not being used right now
-        stride_in_minutes=6,
-        thresh_in_minutes=6,
-        sa_connection_str=None,
-        sa_container_name="caset-2022"
-):
 
+def get_station_day_scan_keys(
+    start_time,
+    end_time,
+    station,  # not being used right now
+    stride_in_minutes=6,
+    thresh_in_minutes=6,
+    sa_connection_str=None,
+    sa_container_name="caset-2022",
+):
     container_client = ContainerClient.from_connection_string(
-            conn_str=sa_connection_str,
-            container_name=sa_container_name)
-   
+        conn_str=sa_connection_str, container_name=sa_container_name
+    )
+
     blob_names = []
     current_time = start_time
     # This loop usually runs only once, but we put it in the while loop
     # in case utc times for a day span across dates
     while current_time <= end_time:
         date_prefix = blob_date_prefix(current_time)
-        blob_names.extend(list(container_client.list_blob_names(name_starts_with=date_prefix)))
+        blob_names.extend(
+            list(container_client.list_blob_names(name_starts_with=date_prefix))
+        )
         current_time = current_time + timedelta(days=1)
 
     if not blob_names:
         return []
 
     # # iterate by time and select the appropriate scans
-    times = list(datetime_range(start_time, end_time, timedelta(minutes=stride_in_minutes)))
+    times = list(
+        datetime_range(start_time, end_time, timedelta(minutes=stride_in_minutes))
+    )
     time_thresh = timedelta(minutes=thresh_in_minutes)
 
     selected_blob_names = []
@@ -109,16 +115,16 @@ def get_station_day_scan_keys(
 
 
 def download_scan(
-        key,
-        data_dir,
-        file_download_loc,
-        sa_connection_str=None,
-        sa_container_name="caset-2022"):
-
+    key,
+    data_dir,
+    file_download_loc,
+    sa_connection_str=None,
+    sa_container_name="caset-2022",
+):
     container_client = ContainerClient.from_connection_string(
-            conn_str=sa_connection_str,
-            container_name=sa_container_name)
-    
+        conn_str=sa_connection_str, container_name=sa_container_name
+    )
+
     local_file = os.path.join(data_dir, file_download_loc)
     local_dir, filename = os.path.split(local_file)
     os.makedirs(local_dir, exist_ok=True)
