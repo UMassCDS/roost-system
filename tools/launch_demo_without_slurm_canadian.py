@@ -8,9 +8,13 @@ import torch
 print(f"torch.get_num_threads: {torch.get_num_threads()}", flush=True)
 warnings.filterwarnings("ignore")
 
+from yacs.config import CfgNode as CN
+
 from roosts.system import RoostSystem
 from roosts.utils.azure_sa_util import get_station_day_scan_keys
 from roosts.utils.time_util import get_days_list, get_sun_activity_time
+
+here = os.path.dirname(os.path.realpath(__file__))
 
 
 def run_system():
@@ -107,12 +111,12 @@ station = (
 )
 # We needed station code to be 4 letter to work with minimal changes to code for American data
 start = "20220601"  # the first day to process
-end = "20220930"  # the last day to process
+end = "20221031"  # the last day to process
 sun_activity = "sunrise"  # process scans in a time window around "sunrise" or "sunset"
 min_before = 30  # process scans this many minutes before the sun activity
 min_after = 60  # process scans this many minutes after the sun activity
 
 # Add connection string for the storage account "roostcanada" from the portal here
-sa_connection_str = ""
+sa_connection_str = "<add-connection-string-here>"
 sa_container_name = "cassf-2022"
 run_system()

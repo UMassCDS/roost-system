@@ -1,4 +1,9 @@
+import os  # noqa: F401
 from abc import ABC, abstractmethod
+
+from tqdm import tqdm  # noqa: F401
+
+from roosts.utils.s3_util import download_scan  # noqa: F401
 
 
 class Downloader(ABC):
