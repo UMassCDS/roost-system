@@ -8,11 +8,14 @@ import torch
 print(f"torch.get_num_threads: {torch.get_num_threads()}", flush=True)
 warnings.filterwarnings("ignore")
 
-from yacs.config import CfgNode as CN
+from yacs.config import CfgNode as CN  # noqa: E402
 
-from roosts.system import RoostSystem
-from roosts.utils.azure_sa_util import get_station_day_scan_keys
-from roosts.utils.time_util import get_days_list, get_sun_activity_time
+from roosts.system import RoostSystem  # noqa: E402
+from roosts.utils.azure_sa_util import get_station_day_scan_keys  # noqa: E402
+from roosts.utils.time_util import (
+    get_days_list,  # noqa: E402
+    get_sun_activity_time,
+)
 
 here = os.path.dirname(os.path.realpath(__file__))
 
@@ -102,8 +105,13 @@ def run_system():
             sa_container_name=args.sa_container_name,
         )
         keys = sorted(list(set(keys)))  # azure keys
-
-        roost_system.run_day_station(day, sun_activity_time, keys, process_start_time)
+        try:
+            roost_system.run_day_station(
+                day, sun_activity_time, keys, process_start_time
+            )
+        except IndexError as e:
+            print(f"Skipping day {day} due to: {e}", flush=True)
+            continue
 
 
 station = (
